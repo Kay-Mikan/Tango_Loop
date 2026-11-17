@@ -1,0 +1,1266 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Tango Loop</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&family=Atkinson+Hyperlegible:wght@400;700&family=Source+Serif+4:wght@600;700&family=BIZ+UDPGothic:wght@400;700&display=swap">
+<style>
+/* Layout: one calm column. Home = today's counts + decks; Study = a single focused flashcard with four graded answers. */
+:root{
+  --bg:#F2F5F3; --surface:#FFFFFF; --surface-2:#E7EDEA; --ink:#14201C; --muted:#586661; --line:#D3DCD8;
+  --accent:#2F52E0; --accent-ink:#FFFFFF; --accent-soft:#E1E7FF;
+  --again:#B8302F; --hard:#935A0A; --good:#17784C; --easy:#2F52E0;
+  --shadow:0 1px 2px rgba(20,32,28,.06),0 8px 28px rgba(20,32,28,.07);
+  --f-display:"Bricolage Grotesque","Noto Sans JP",system-ui,sans-serif;
+  --f-body:Inter,"Noto Sans JP",system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;
+  --f-card:"Atkinson Hyperlegible",Inter,"Noto Sans JP",system-ui,sans-serif;
+  --f-ja:"BIZ UDPGothic","Noto Sans JP",system-ui,"Hiragino Sans","Yu Gothic",sans-serif;
+  --cs:1;
+}
+:root[data-cf="serif"]{--f-card:"Source Serif 4",Georgia,"Noto Sans JP",serif}
+:root[data-cf="sans"]{--f-card:Inter,"Noto Sans JP",system-ui,sans-serif}
+:root[data-cs="l"]{--cs:1.2}
+:root[data-cs="s"]{--cs:.85}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1513; --surface:#172220; --surface-2:#1F2D2A; --ink:#E7EFEC; --muted:#93A39D; --line:#2A3A36;
+    --accent:#8FA3FF; --accent-ink:#0B1020; --accent-soft:#222C55;
+    --again:#F28A8A; --hard:#E3A855; --good:#62CB9B; --easy:#8FA3FF;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 28px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1513; --surface:#172220; --surface-2:#1F2D2A; --ink:#E7EFEC; --muted:#93A39D; --line:#2A3A36;
+  --accent:#8FA3FF; --accent-ink:#0B1020; --accent-soft:#222C55;
+  --again:#F28A8A; --hard:#E3A855; --good:#62CB9B; --easy:#8FA3FF;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 28px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg);color:var(--ink);font:400 15px/1.6 var(--f-body);
+  padding-block:18px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+p,h1,h2,h3,ul{margin:0}
+ul{list-style:none;padding:0}
+h2{font:700 1.15rem/1.3 var(--f-display);letter-spacing:-.01em;text-wrap:balance}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.small{font-size:.82rem}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font:700 1.4rem/1.2 var(--f-display);letter-spacing:-.02em;display:flex;align-items:baseline;gap:8px}
+.brand small{font:500 .7rem var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.chip{font-size:.75rem;color:var(--muted);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--good)}
+.chip[data-s="saving"]::before{background:var(--hard)}
+.chip[data-s="local"]::before{background:var(--muted)}
+.chip[data-s="error"]::before{background:var(--again)}
+
+nav.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--surface-2);padding:4px;border-radius:13px}
+nav.tabs button{border:0;background:transparent;color:var(--muted);font:600 .86rem var(--f-body);padding:9px 2px;border-radius:9px;cursor:pointer;min-width:0}
+nav.tabs button[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(20,32,28,.12)}
+
+.btn{min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 .95rem var(--f-body);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.big{min-height:56px;font-size:1.05rem;width:100%}
+.btn.sm{min-height:34px;padding:0 12px;font-size:.82rem;border-radius:9px}
+.btn.danger{color:var(--again)}
+.btn.ghost{background:transparent}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--accent);display:inline-grid;place-items:center;cursor:pointer;flex:none}
+.ico{display:inline-flex}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel.hero{box-shadow:var(--shadow)}
+.hero-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.counts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.count b{display:block;font:700 2.5rem/1.05 var(--f-display);font-variant-numeric:tabular-nums}
+.count span{font-size:.78rem;color:var(--muted)}
+.c-nw{color:var(--accent)} .c-lr{color:var(--hard)} .c-rv{color:var(--good)}
+
+.deck{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:12px;border-top:1px solid var(--line)}
+.deck:first-of-type{border-top:0;padding-top:0}
+.deck-main{min-width:0}
+.deck-name{font-weight:600;overflow-wrap:anywhere}
+.deck-meta{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.deck-meta b{font-weight:600}
+
+.studybar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.qc{display:flex;gap:14px;font:600 .95rem var(--f-body);font-variant-numeric:tabular-nums}
+.q{padding-bottom:2px;border-bottom:2px solid transparent}
+.q.cur{border-bottom-color:currentColor}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:30px 22px;min-height:290px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px;text-align:center;min-width:0}
+.face-label{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.wordline{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;max-width:100%}
+.phon{font-family:var(--f-card);color:var(--muted);font-size:calc(1.15rem*var(--cs));line-height:1.3;text-align:center;overflow-wrap:anywhere}
+.memo-text .phon{text-align:left}
+.item-p{color:var(--muted);font-size:.85rem}
+.word{font-family:var(--f-card);font-weight:700;font-size:calc(clamp(2.4rem,9vw,3.8rem)*var(--cs));line-height:1.15;letter-spacing:.005em;overflow-wrap:anywhere;text-wrap:balance}
+.ja-front{font-family:var(--f-ja);font-weight:700;font-size:calc(clamp(1.5rem,6vw,2.1rem)*var(--cs));line-height:1.5;overflow-wrap:anywhere;text-wrap:balance}
+.rule{width:56px;height:2px;background:var(--line);border-radius:2px}
+.ja{font-family:var(--f-ja);font-weight:700;font-size:calc(1.5rem*var(--cs));line-height:1.55;overflow-wrap:anywhere}
+.exline{display:flex;gap:8px;align-items:flex-start;justify-content:center;max-width:34em}
+.ex{color:var(--muted);font-family:var(--f-card);font-size:calc(1.08rem*var(--cs));line-height:1.65;overflow-wrap:anywhere;text-align:left}
+mark{background:var(--accent-soft);color:var(--ink);border-radius:4px;padding:0 3px}
+.etym{max-width:34em;width:100%;text-align:left;background:var(--surface-2);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+.etym-l{font-size:.7rem;letter-spacing:.12em;color:var(--muted);font-weight:600}
+.etym-t{font-family:var(--f-ja);font-size:calc(.95rem*var(--cs));line-height:1.65;overflow-wrap:anywhere;white-space:pre-line}
+.item-e{color:var(--muted);font-size:.82rem;overflow-wrap:anywhere}
+.pic{max-width:100%;max-height:220px;border-radius:14px;object-fit:contain;background:var(--surface-2)}
+.pic-prev{max-width:160px;max-height:160px;border-radius:12px;object-fit:contain;background:var(--surface-2);align-self:flex-start}
+.thumb{display:block;height:56px;max-width:100%;margin-top:6px;border-radius:8px;object-fit:cover}
+.rates{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rate{--c:var(--accent);border-radius:14px;padding:10px 2px;min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px solid color-mix(in srgb,var(--c) 38%,var(--line));background:color-mix(in srgb,var(--c) 11%,var(--surface));color:var(--c);font:600 .9rem var(--f-body);cursor:pointer;min-width:0}
+.rate small{font-weight:500;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.r1{--c:var(--again)} .r2{--c:var(--hard)} .r3{--c:var(--good)} .r4{--c:var(--easy)}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:34px}
+
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.lbl{font-weight:600;font-size:.85rem}
+input[type=text],input[type=number],input[type=search],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;min-width:0}
+textarea{resize:vertical;line-height:1.5}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.check{display:flex;gap:10px;align-items:flex-start}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent);flex:none}
+details.panel summary{cursor:pointer;font-weight:600}
+
+.list{display:flex;flex-direction:column}
+.item{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item-main{min-width:0}
+.item-w{font-weight:700;font-family:var(--f-card);font-size:1.08rem;overflow-wrap:anywhere}
+.item-m{overflow-wrap:anywhere}
+.item-x{color:var(--muted);font-size:.85rem;overflow-wrap:anywhere}
+.item-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none;font-size:.78rem;color:var(--muted)}
+.badge{padding:2px 8px;border-radius:999px;font-weight:600;font-size:.74rem;background:var(--surface-2);color:var(--muted)}
+.badge.s0{color:var(--accent);background:var(--accent-soft)}
+.badge.s1,.badge.s3{color:var(--hard);background:color-mix(in srgb,var(--hard) 14%,var(--surface))}
+.badge.s2{color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--surface))}
+.badge.lr1{color:var(--again);background:color-mix(in srgb,var(--again) 14%,var(--surface))}
+.badge.lr2{color:var(--hard);background:color-mix(in srgb,var(--hard) 14%,var(--surface))}
+.badge.lr3{color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--surface))}
+.badge.lr4{color:var(--easy);background:color-mix(in srgb,var(--easy) 14%,var(--surface))}
+.pick{width:20px;height:20px;margin-top:2px;accent-color:var(--accent);flex:none}
+.item.pickable{cursor:pointer;align-items:flex-start;padding-left:6px;padding-right:6px;border-radius:10px}
+.item.sel{background:var(--accent-soft)}
+.bulkbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.editbox{display:flex;flex-direction:column;gap:10px;padding:12px 0;border-top:1px solid var(--line);width:100%}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.tile b{display:block;font:700 1.7rem/1.1 var(--f-display);font-variant-numeric:tabular-nums}
+.tile span{font-size:.78rem;color:var(--muted)}
+.bars{display:flex;gap:6px;height:150px;align-items:stretch}
+.bar{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.col{position:relative;flex:1;border-bottom:1px solid var(--line)}
+.fill{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:34px;height:calc(var(--h)*1%);min-height:2px;border-radius:6px 6px 2px 2px;background:var(--accent)}
+.fill.zero{background:var(--line)}
+.val{position:absolute;left:0;right:0;text-align:center;bottom:calc(var(--h)*1% + 4px);font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.xl{text-align:center;font-size:.72rem;color:var(--muted)}
+.bars-wrap{display:flex;flex-direction:column;gap:4px}
+.xrow{display:flex;gap:6px}
+.xrow .xl{flex:1;min-width:0}
+
+.pic.big{max-height:260px;max-width:min(100%,360px)}
+.pic-empty{width:100%;max-width:360px;min-height:120px;border:2px dashed var(--line);border-radius:14px;display:grid;place-items:center;color:var(--muted);font-size:.88rem;padding:12px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface-2);padding:4px;border-radius:12px}
+.seg button{border:0;background:transparent;color:var(--muted);font:600 .84rem var(--f-body);padding:9px 4px;border-radius:9px;cursor:pointer;min-width:0}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(20,32,28,.12)}
+.memo-card{align-items:stretch;justify-content:flex-start;text-align:left}
+.memo-grid{display:grid;grid-template-columns:minmax(0,1fr) clamp(120px,38%,220px);gap:16px;align-items:start}
+.memo-text{display:flex;flex-direction:column;gap:14px;min-width:0}
+.memo-text .wordline{justify-content:flex-start}
+.memo-text .word{font-size:calc(clamp(1.9rem,7.5vw,3rem)*var(--cs))}
+.memo-text .etym{max-width:none}
+.memo-pic{display:flex;flex-direction:column;gap:8px;min-width:0}
+.memo-pic .pic{width:100%;height:auto;max-height:220px}
+.memo-pic .pic-empty{max-width:100%;min-height:110px;text-align:center}
+.memo-pic .row{justify-content:center}
+.memo-card .exline{max-width:none;justify-content:flex-start;border-top:1px solid var(--line);padding-top:14px}
+@media (max-width:340px){.memo-grid{grid-template-columns:minmax(0,1fr)}}
+.wordrow{display:flex;align-items:center;justify-content:center;gap:14px;max-width:100%;min-width:0;flex-wrap:nowrap}
+.wordrow .wordline{min-width:0;flex:0 1 auto}
+.wpic{flex:none;width:88px;height:88px;border-radius:12px}
+.wpic img{display:block;width:100%;height:100%;object-fit:contain;border-radius:12px;background:var(--surface-2)}
+@media (max-width:380px){.wordrow{gap:10px}.wpic{width:72px;height:72px}}
+.memo-nav{display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.memo-nav .btn{min-height:56px;font-size:1.02rem}
+.memo-prog{height:4px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.memo-prog i{display:block;height:100%;background:var(--accent);width:calc(var(--p)*1%)}
+.empty{text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px 8px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:.88rem;z-index:20;max-width:calc(100% - 32px);text-align:center}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ==SCHED-START== */
+const MIN=60000,HOUR=3600000,DAY=86400000,ROLL=4;
+const LEARN=[1,10],RELEARN=[10],GRAD_IV=1,EASY_IV=4,LEARN_AHEAD=20*MIN,MAXIV=36500;
+function dayStart(t){const d=new Date(t-ROLL*HOUR);d.setHours(ROLL,0,0,0);return d.getTime();}
+function addDays(ts,n){const d=new Date(ts);d.setDate(d.getDate()+n);return d.getTime();}
+function pad(n){return n<10?'0'+n:''+n;}
+function dayKey(t){const d=new Date(dayStart(t));return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+/* card.s: 0 new, 1 learning, 2 review, 3 relearning. rating r: 1 again, 2 hard, 3 good, 4 easy */
+function sched(c,r,now){
+  const n=Object.assign({},c);
+  const today=dayStart(now);
+  if(c.s===2){
+    const ef=c.ef||2.5;
+    if(r===1){
+      n.lp=(c.lp||0)+1;n.ef=Math.max(1.3,ef-.2);n.iv=1;n.s=3;n.st=0;n.due=now+RELEARN[0]*MIN;
+    }else{
+      const hard=Math.max(c.iv+1,Math.round(c.iv*1.2));
+      const good=Math.max(hard+1,Math.round(c.iv*ef));
+      const easy=Math.max(good+1,Math.round(c.iv*ef*1.3));
+      let iv;
+      if(r===2){iv=hard;n.ef=Math.max(1.3,ef-.15);}
+      else if(r===3){iv=good;}
+      else{iv=easy;n.ef=ef+.15;}
+      n.iv=Math.min(MAXIV,iv);n.due=addDays(today,n.iv);
+    }
+    return n;
+  }
+  const relearn=c.s===3;
+  const steps=relearn?RELEARN:LEARN;
+  const st=c.s===0?0:c.st;
+  const keep=relearn?3:1;
+  const grad=function(iv){n.s=2;n.st=0;n.iv=iv;n.due=addDays(today,iv);};
+  if(r===1){n.s=keep;n.st=0;n.due=now+steps[0]*MIN;}
+  else if(r===2){
+    const m=(st===0&&steps.length>1)?(steps[0]+steps[1])/2:steps[Math.min(st,steps.length-1)];
+    n.s=keep;n.st=st;n.due=now+m*MIN;
+  }else if(r===3){
+    if(st+1<steps.length){n.s=keep;n.st=st+1;n.due=now+steps[n.st]*MIN;}
+    else grad(relearn?Math.max(1,c.iv):GRAD_IV);
+  }else{
+    grad(relearn?Math.max(1,c.iv)+1:EASY_IV);
+  }
+  return n;
+}
+function fmtDays(d){
+  if(d<30)return d+'日';
+  if(d<365)return (Math.round(d/30*10)/10)+'か月';
+  return (Math.round(d/365*10)/10)+'年';
+}
+function fmtNext(n,now){
+  if(n.s===1||n.s===3){
+    const m=Math.max(1,Math.round((n.due-now)/MIN));
+    return m<60?m+'分':Math.round(m/60)+'時間';
+  }
+  return fmtDays(n.iv);
+}
+function inDeck(c,deck){if(!deck)return true;if(typeof deck==='function')return deck(c);return c.d===deck;}
+function queueCounts(cards,deck,newLeft,now){
+  const eod=addDays(dayStart(now),1),ahead=now+LEARN_AHEAD;
+  let nw=0,lr=0,rv=0;
+  for(const c of cards){
+    if(!inDeck(c,deck))continue;
+    if(c.s===0)nw++;
+    else if(c.s===2){if(c.due<eod)rv++;}
+    else if(c.due<=ahead)lr++;
+  }
+  return {nw:Math.min(nw,Math.max(0,newLeft)),lr:lr,rv:rv};
+}
+function pickCard(cards,deck,newLeft,now){
+  const eod=addDays(dayStart(now),1),ahead=now+LEARN_AHEAD;
+  let learnNow=null,learnSoon=null,firstNew=null;const revs=[];
+  for(const c of cards){
+    if(!inDeck(c,deck))continue;
+    if(c.s===1||c.s===3){
+      if(c.due<=now){if(!learnNow||c.due<learnNow.due)learnNow=c;}
+      else if(c.due<=ahead){if(!learnSoon||c.due<learnSoon.due)learnSoon=c;}
+    }else if(c.s===2){if(c.due<eod)revs.push(c);}
+    else if(!firstNew)firstNew=c;
+  }
+  if(learnNow)return learnNow;
+  if(revs.length)return revs[Math.floor(Math.random()*revs.length)];
+  if(firstNew&&newLeft>0)return firstNew;
+  return learnSoon;
+}
+/* ==SCHED-END== */
+
+const PAGE=100,LSKEY='tango-loop-v1',SAMPLE_DECK='基本英単語(サンプル)';
+const SAMPLE=[
+["abandon","〜を捨てる、放棄する","He had to abandon his car in the snow."],
+["accomplish","〜を成し遂げる","She accomplished her goal of running a marathon."],
+["adequate","十分な、適切な","The room was adequate for our needs."],
+["ambiguous","あいまいな、複数の意味にとれる","The instructions were ambiguous, so we asked for help."],
+["attain","〜を達成する、手に入れる","It took years to attain fluency."],
+["benefit","利益、恩恵","Regular exercise has many health benefits."],
+["cautious","慎重な、用心深い","Be cautious when you cross the street."],
+["coincide","同時に起こる、一致する","The festival coincides with the school holidays."],
+["compensate","補償する、埋め合わせる","Nothing can compensate for the loss of time."],
+["consequence","結果、重大さ","Every choice has a consequence."],
+["considerable","かなりの、相当な","It cost a considerable amount of money."],
+["convince","〜を納得させる","I couldn't convince him to join us."],
+["crucial","極めて重要な","Sleep is crucial for memory."],
+["deadline","締め切り","The deadline for the report is Friday."],
+["deliberate","意図的な、慎重な","It was a deliberate choice, not an accident."],
+["demonstrate","〜を実演する、証明する","The teacher demonstrated how to use the tool."],
+["encounter","〜に出くわす、遭遇","We encountered heavy traffic on the way."],
+["enhance","〜を高める、強化する","Good lighting enhances the mood of a room."],
+["essential","不可欠な","Water is essential for life."],
+["evaluate","〜を評価する","We need to evaluate the results carefully."],
+["fundamental","基本的な、根本的な","Honesty is fundamental to trust."],
+["genuine","本物の、心からの","She showed genuine interest in my work."],
+["hesitate","ためらう","Don't hesitate to ask questions."],
+["illustrate","〜を説明する、図解する","The graph illustrates the trend clearly."],
+["inevitable","避けられない","Change is inevitable."],
+["insight","洞察、深い理解","The book gave me new insight into history."],
+["maintain","〜を維持する","It's hard to maintain a healthy routine."],
+["obvious","明らかな","The answer was obvious to everyone."],
+["persuade","〜を説得する","He persuaded me to try again."],
+["reluctant","気が進まない","She was reluctant to speak in public."],
+["reliable","信頼できる","This is a reliable source of information."],
+["resemble","〜に似ている","She resembles her mother."],
+["significant","重要な、かなりの","There was a significant improvement."],
+["sufficient","十分な","Do we have sufficient time?"],
+["temporary","一時的な","This is only a temporary solution."],
+["tend to","〜しがちである","I tend to forget names."],
+["valid","有効な、妥当な","Your ticket is valid for one year."],
+["vary","変わる、異なる","Prices vary from shop to shop."],
+["widespread","広く行き渡った","The tradition is widespread in rural areas."],
+["withdraw","〜を引き出す、撤回する","She withdrew some cash from the ATM."]
+];
+
+const PH={"abandon": "əˈbændən", "accomplish": "əˈkɑːmplɪʃ", "adequate": "ˈædɪkwət", "ambiguous": "æmˈbɪɡjuəs", "attain": "əˈteɪn", "benefit": "ˈbenɪfɪt", "cautious": "ˈkɔːʃəs", "coincide": "ˌkoʊɪnˈsaɪd", "compensate": "ˈkɑːmpenseɪt", "consequence": "ˈkɑːnsɪkwens", "considerable": "kənˈsɪdərəbl", "convince": "kənˈvɪns", "crucial": "ˈkruːʃl", "deadline": "ˈdedlaɪn", "deliberate": "dɪˈlɪbərət", "demonstrate": "ˈdemənstreɪt", "encounter": "ɪnˈkaʊntər", "enhance": "ɪnˈhæns", "essential": "ɪˈsenʃl", "evaluate": "ɪˈvæljueɪt", "fundamental": "ˌfʌndəˈmentl", "genuine": "ˈdʒenjuɪn", "hesitate": "ˈhezɪteɪt", "illustrate": "ˈɪləstreɪt", "inevitable": "ɪnˈevɪtəbl", "insight": "ˈɪnsaɪt", "maintain": "meɪnˈteɪn", "obvious": "ˈɑːbviəs", "persuade": "pərˈsweɪd", "reluctant": "rɪˈlʌktənt", "reliable": "rɪˈlaɪəbl", "resemble": "rɪˈzembl", "significant": "sɪɡˈnɪfɪkənt", "sufficient": "səˈfɪʃnt", "temporary": "ˈtempəreri", "tend to": "ˈtend tuː", "valid": "ˈvælɪd", "vary": "ˈveri", "widespread": "ˈwaɪdspred", "withdraw": "wɪðˈdrɔː"};
+function phon(c){if(c.p!=null)return c.p;return c.d===SAMPLE_DECK?(PH[c.w]?'/'+PH[c.w]+'/':''):'';}
+function normP(v){v=(v||'').trim();if(v&&!/^[\/\[]/.test(v))v='/'+v+'/';return v;}
+
+/* ---------- state ---------- */
+let S={cards:[],settings:{newPerDay:20,reverse:false,autoSpeak:false,cardFont:'hyper',cardSize:'m',accent:'us',rate:0.9,voiceURI:''},days:{},seeded:false,decks:[],imgs:{}};
+let creating=false;
+let mode='local',uid=null,coll=null,stat='saved',lastC=0;
+const dirty={pages:new Set(),meta:false,imgs:new Set()};
+let addImg='',editImg='';
+let saveTimer=null,saving=false,again=false;
+let view='home',study=null,editingId=null,query='',deckFilter='',sortKey='new',shownLimit=100,lastDeck='';
+let selectMode=false,curRows=[];const selected=new Set();
+const RATE_NAMES=['もう一度','難しい','普通','簡単'];
+let armedKey=null,armedTimer=null,toastTimer=null,exportText='';
+const root=document.getElementById('app');
+const TTS=('speechSynthesis' in window)&&(typeof SpeechSynthesisUtterance!=='undefined');
+
+/* ---------- helpers ---------- */
+function h(tag,props){
+  const e=document.createElement(tag);
+  if(props)for(const k in props){
+    const v=props[k];
+    if(v==null||v===false)continue;
+    if(k==='class')e.className=v;
+    else if(k==='text')e.textContent=v;
+    else if(k==='style')e.style.cssText=v;
+    else if(k.slice(0,2)==='on')e.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(v===true)e.setAttribute(k,'');
+    else e.setAttribute(k,v);
+  }
+  const kids=Array.prototype.slice.call(arguments,2);
+  for(const c of kids.flat()){
+    if(c==null||c===false)continue;
+    e.append(c.nodeType?c:document.createTextNode(String(c)));
+  }
+  return e;
+}
+const ICONS={
+  sound:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
+  undo:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>',
+  back:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>'
+};
+function icon(n){const s=document.createElement('span');s.className='ico';s.innerHTML=ICONS[n];return s;}
+function rid(){return Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.hidden=false;
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.hidden=true;},2400);
+}
+let voices=[];
+function loadVoices(){
+  if(!TTS)return;
+  try{voices=speechSynthesis.getVoices().filter(function(v){return /^en([-_]|$)/i.test(v.lang);});}catch(e){voices=[];}
+}
+function vLang(v){return v.lang.replace('_','-');}
+function bestVoice(){
+  const sel=S.settings.voiceURI;
+  if(sel){const v=voices.find(function(x){return x.voiceURI===sel;});if(v)return v;}
+  const want=S.settings.accent==='uk'?'en-GB':'en-US';
+  const score=function(v){
+    let s=0;
+    if(vLang(v)===want)s+=10;
+    if(/natural|neural|premium|enhanced|online/i.test(v.name))s+=4;
+    if(/google/i.test(v.name))s+=2;
+    if(/samantha|ava|allison|daniel|serena|karen|alex/i.test(v.name))s+=1;
+    return s;
+  };
+  let best=null,bs=-1;
+  for(const v of voices){const s=score(v);if(s>bs){bs=s;best=v;}}
+  return best;
+}
+function speak(t){
+  if(!TTS||!t)return;
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(t),v=bestVoice();
+    if(v){u.voice=v;u.lang=vLang(v);}else u.lang=S.settings.accent==='uk'?'en-GB':'en-US';
+    u.rate=S.settings.rate||.9;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function esc(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+function deckNames(){
+  const seen=[];
+  for(const c of S.cards)if(seen.indexOf(c.d)<0)seen.push(c.d);
+  for(const d of S.decks)if(seen.indexOf(d)<0)seen.push(d);
+  return seen;
+}
+function todayStats(now){return S.days[dayKey(now)]||{n:0,r:0,a:0};}
+function newLeft(now){return Math.max(0,S.settings.newPerDay-(todayStats(now).n||0));}
+function arm(key,fn,rerender){
+  clearTimeout(armedTimer);
+  if(armedKey===key){armedKey=null;fn();return;}
+  armedKey=key;
+  armedTimer=setTimeout(function(){armedKey=null;rerender();},3500);
+  rerender();
+}
+function exNode(text,word){
+  if(!text)return null;
+  const m=word?new RegExp(esc(word)+'\\w*','i').exec(text):null;
+  if(!m)return document.createTextNode(text);
+  const f=document.createDocumentFragment();
+  f.append(text.slice(0,m.index),h('mark',null,m[0]),text.slice(m.index+m[0].length));
+  return f;
+}
+function forecast(now){
+  const out=[0,0,0,0,0,0,0],t0=dayStart(now);
+  for(const c of S.cards){
+    if(c.s!==2)continue;
+    const i=Math.max(0,Math.round((dayStart(c.due)-t0)/DAY));
+    if(i<7)out[i]++;
+  }
+  return out;
+}
+const WK=['日','月','火','水','木','金','土'];
+function applyPrefs(){
+  const r=document.documentElement,f=S.settings.cardFont,z=S.settings.cardSize;
+  if(!f||f==='hyper')delete r.dataset.cf;else r.dataset.cf=f;
+  if(!z||z==='m')delete r.dataset.cs;else r.dataset.cs=z;
+}
+
+/* ---------- images ---------- */
+function setImg(id,d){if(d)S.imgs[id]=d;else delete S.imgs[id];dirty.imgs.add(id);}
+function pruneImgs(){
+  const ids=new Set(S.cards.map(function(c){return c.id;}));
+  for(const id in S.imgs)if(!ids.has(id)){delete S.imgs[id];dirty.imgs.add(id);}
+}
+function thumb(c){const d=S.imgs[c.id];return d?h('img',{class:'thumb',src:d,alt:'',loading:'lazy'}):null;}
+function readImage(file,cb){
+  if(!file)return;
+  if(!/^image\//.test(file.type||'')){toast('画像ファイルを選んでください');return;}
+  const fr=new FileReader();
+  fr.onerror=function(){toast('画像を読み込めませんでした');};
+  fr.onload=function(){
+    const im=new Image();
+    im.onerror=function(){toast('この画像形式は読み込めません');};
+    im.onload=function(){
+      const M=320,sc=Math.min(1,M/Math.max(im.width,im.height));
+      const w=Math.max(1,Math.round(im.width*sc)),hh=Math.max(1,Math.round(im.height*sc));
+      const cv=document.createElement('canvas');cv.width=w;cv.height=hh;
+      const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,hh);cx.drawImage(im,0,0,w,hh);
+      let out='';
+      try{out=cv.toDataURL('image/jpeg',0.72);}catch(e){}
+      if(!out||out.length<30){toast('画像を変換できませんでした');return;}
+      cb(out);
+    };
+    im.src=fr.result;
+  };
+  fr.readAsDataURL(file);
+}
+function picField(init,onchange){
+  let cur=init||'';
+  const box=h('div',{class:'field'});
+  const file=h('input',{type:'file',accept:'image/*',hidden:true,'aria-label':'画像ファイル'});
+  file.addEventListener('change',function(){
+    const f=file.files&&file.files[0];
+    readImage(f,function(d){cur=d;onchange(d);draw();});
+    file.value='';
+  });
+  function draw(){
+    box.replaceChildren(
+      h('span',{class:'lbl'},'絵(任意)'),
+      cur?h('img',{class:'pic-prev',src:cur,alt:'選んだ画像'}):null,
+      h('div',{class:'row'},
+        h('button',{class:'btn sm',type:'button',onclick:function(){file.click();}},cur?'画像を変更':'画像を選ぶ'),
+        cur?h('button',{class:'btn sm danger',type:'button',onclick:function(){cur='';onchange('');draw();}},'画像を外す'):null,
+        file),
+      h('span',{class:'muted small'},'自動で小さく縮小して保存します。'));
+  }
+  draw();
+  return {node:box,reset:function(){cur='';draw();}};
+}
+
+/* ---------- cards ---------- */
+function mkCard(w,m,x,d,e,p){
+  lastC=Math.max(Date.now(),lastC+1);
+  return {id:rid(),w:w,m:m,x:x||'',e:e||'',p:normP(p),d:d,s:0,st:0,due:0,iv:0,ef:2.5,lp:0,c:lastC,pg:0};
+}
+function addCard(card){
+  let max=0;
+  for(const c of S.cards)if(c.pg>max)max=c.pg;
+  let n=0;
+  for(const c of S.cards)if(c.pg===max)n++;
+  card.pg=n>=PAGE?max+1:max;
+  S.cards.push(card);
+  dirty.pages.add(card.pg);
+}
+function hasDup(w,d){
+  const k=w.trim().toLowerCase();
+  return S.cards.some(function(c){return c.d===d&&c.w.trim().toLowerCase()===k;});
+}
+function seedSample(){
+  for(const r of SAMPLE)addCard(mkCard(r[0],r[1],r[2],SAMPLE_DECK));
+  S.seeded=true;dirty.meta=true;
+}
+
+/* ---------- storage ---------- */
+function setStat(s){
+  stat=s;
+  const el=document.getElementById('chip');
+  if(el){el.dataset.s=s;el.textContent=statText();}
+}
+function statText(){
+  return {saved:mode==='cloud'?'保存済み':'この端末に保存',saving:'保存中…',local:'この端末に保存',error:'保存できません'}[stat]||'';
+}
+function metaDoc(){
+  const keys=Object.keys(S.days).sort();
+  while(keys.length>400)delete S.days[keys.shift()];
+  return {v:1,settings:S.settings,days:S.days,seeded:S.seeded,decks:S.decks};
+}
+function scheduleSave(){
+  pruneImgs();
+  clearTimeout(saveTimer);
+  setStat('saving');
+  saveTimer=setTimeout(flush,500);
+}
+async function flush(){
+  clearTimeout(saveTimer);
+  if(saving){again=true;return;}
+  saving=true;
+  try{
+    if(mode==='cloud'){
+      const pages=Array.from(dirty.pages),meta=dirty.meta,imgIds=Array.from(dirty.imgs);dirty.imgs.clear();
+      dirty.pages.clear();dirty.meta=false;
+      for(const p of pages)await coll.doc('p'+p).set({cards:S.cards.filter(function(c){return c.pg===p;})});
+      for(const id of imgIds)await coll.doc('i_'+id).set({d:S.imgs[id]||''});
+      if(meta)await coll.doc('meta').set(metaDoc());
+      setStat('saved');
+    }else{
+      localStorage.setItem(LSKEY,JSON.stringify(S));
+      dirty.pages.clear();dirty.meta=false;dirty.imgs.clear();
+      setStat('local');
+    }
+  }catch(e){
+    if(mode==='cloud'){
+      mode='local';
+      try{localStorage.setItem(LSKEY,JSON.stringify(S));setStat('local');toast('クラウドに保存できなかったため、この端末に保存します');}
+      catch(e2){setStat('error');}
+    }else{setStat('error');toast('保存できません。画像を減らしてください');}
+  }finally{
+    saving=false;
+    if(again){again=false;flush();}
+  }
+}
+function withTimeout(p,ms){
+  return Promise.race([p,new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},ms);})]);
+}
+function loadLocal(){
+  let raw=null;
+  try{raw=localStorage.getItem(LSKEY);}catch(e){}
+  if(!raw)return false;
+  try{
+    const o=JSON.parse(raw);
+    S.cards=o.cards||[];Object.assign(S.settings,o.settings||{});S.days=o.days||{};S.seeded=!!o.seeded;S.decks=o.decks||[];S.imgs=o.imgs||{};
+    return true;
+  }catch(e){return false;}
+}
+async function initStorage(){
+  let db=null;
+  try{
+    if(window.claude&&window.claude.use){
+      const user=await window.claude.use('user');
+      uid=user?await user.id():null;
+      db=uid?await window.claude.use('db'):null;
+    }
+  }catch(e){db=null;}
+  if(db&&uid){
+    try{
+      coll=db.collection('data/users/'+uid);
+      const snap=await withTimeout(coll.get(),10000);
+      const pages=[];let meta=null;const imgs={};
+      snap.docs.forEach(function(d){
+        if(!d.exists)return;
+        const data=d.data()||{};
+        if(d.id==='meta')meta=JSON.parse(JSON.stringify(data));
+        else if(/^p\d+$/.test(d.id))pages.push([parseInt(d.id.slice(1),10),data.cards||[]]);
+        else if(/^i_/.test(d.id)){if(data.d)imgs[d.id.slice(2)]=data.d;}
+      });
+      pages.sort(function(a,b){return a[0]-b[0];});
+      S.cards=[];S.imgs=imgs;
+      for(const p of pages)for(const c of p[1]){const cc=Object.assign({},c);cc.pg=p[0];S.cards.push(cc);}
+      if(meta){Object.assign(S.settings,meta.settings||{});S.days=meta.days||{};S.seeded=!!meta.seeded;S.decks=meta.decks||[];}
+      for(const c of S.cards)if(c.c>lastC)lastC=c.c;
+      mode='cloud';
+      if(!meta&&!pages.length&&!snap.metadata.fromCache){seedSample();scheduleSave();}
+      else setStat('saved');
+      return;
+    }catch(e){coll=null;}
+  }
+  mode='local';
+  const had=loadLocal();
+  for(const c of S.cards)if(c.c>lastC)lastC=c.c;
+  if(!had){seedSample();scheduleSave();}
+  else setStat('local');
+}
+
+/* ---------- study flow ---------- */
+function studyNL(now){return study&&study.free?9999:newLeft(now);}
+function startStudy(deck,label,free){
+  study={deck:deck,label:label||'',free:!!free,card:null,shown:false,done:0,undo:[]};
+  study.card=pickCard(S.cards,deck,studyNL(Date.now()),Date.now());
+  view='study';render();
+}
+function showAnswer(){
+  if(!study||!study.card)return;
+  study.shown=true;render();
+  if(S.settings.autoSpeak){speak(study.card.w);}
+}
+function rate(r){
+  if(!study||!study.card||!study.shown)return;
+  const c=study.card,now=Date.now(),dk=dayKey(now);
+  study.undo.push({prev:Object.assign({},c),dk:dk,day:S.days[dk]?Object.assign({},S.days[dk]):null});
+  if(study.undo.length>30)study.undo.shift();
+  const n=sched(c,r,now);
+  n.lr=r;
+  const day=S.days[dk]||(S.days[dk]={n:0,r:0,a:0});
+  if(c.s===0)day.n=(day.n||0)+1;
+  day.r=(day.r||0)+1;
+  if(r===1)day.a=(day.a||0)+1;
+  Object.assign(c,n);
+  dirty.pages.add(c.pg);dirty.meta=true;scheduleSave();
+  study.done++;
+  study.card=pickCard(S.cards,study.deck,studyNL(now),now);
+  study.shown=false;
+  render();
+}
+function undo(){
+  if(!study||!study.undo.length)return;
+  const u=study.undo.pop();
+  const card=S.cards.find(function(c){return c.id===u.prev.id;});
+  if(!card)return;
+  Object.assign(card,u.prev);
+  card.lr=u.prev.lr||0;
+  if(u.day)S.days[u.dk]=u.day;else delete S.days[u.dk];
+  study.done=Math.max(0,study.done-1);
+  study.card=card;study.shown=false;
+  dirty.pages.add(card.pg);dirty.meta=true;scheduleSave();
+  render();
+}
+
+/* ---------- views ---------- */
+function header(){
+  return h('div',{class:'top'},
+    h('div',{class:'brand'},'Tango Loop',h('small',null,'英単語')),
+    h('span',{class:'chip',id:'chip','data-s':stat},statText()));
+}
+function nav(){
+  const tabs=[['home','ホーム'],['add','追加'],['browse','一覧'],['stats','統計'],['settings','設定']];
+  return h('nav',{class:'tabs','aria-label':'メニュー'},tabs.map(function(t){
+    return h('button',{type:'button','aria-current':view===t[0]?'page':null,onclick:function(){view=t[0];editingId=null;render();}},t[1]);
+  }));
+}
+function render(){
+  applyPrefs();
+  const parts=[header()];
+  if(view!=='study'&&view!=='memo')parts.push(nav());
+  let main;
+  if(view==='study'&&study)main=studyView();
+  else if(view==='memo'&&memo)main=memoView();
+  else{
+    if(view==='study'||view==='memo')view='home';
+    main={home:homeView,add:addView,browse:browseView,stats:statsView,settings:settingsView}[view]();
+  }
+  parts.push(main);
+  root.replaceChildren.apply(root,parts);
+  if(view==='browse')renderList();
+}
+
+/* ---------- memorize mode: English + picture as a set ---------- */
+let memo=null;
+function memoList(deck,scope){
+  return S.cards.filter(function(c){
+    if(!inDeck(c,deck))return false;
+    if(scope==='new')return c.s===0;
+    if(scope==='pic')return !!S.imgs[c.id];
+    return true;
+  });
+}
+function memoApply(){
+  memo.ids=memoList(memo.deck,memo.scope).map(function(c){return c.id;});
+  memo.i=0;memo.done=false;
+}
+function memoCard(){
+  if(!memo||!memo.ids.length)return null;
+  const id=memo.ids[memo.i];
+  return S.cards.find(function(c){return c.id===id;})||null;
+}
+function memoSpeak(){
+  const c=memoCard();
+  if(S.settings.autoSpeak&&c&&memo&&!memo.done)speak(c.w);
+}
+function startMemo(deck,label,pick){
+  memo={deck:deck,label:label||'',free:!!pick,scope:(!pick&&memoList(deck,'new').length)?'new':'all',ids:[],i:0,done:false};
+  memoApply();view='memo';render();memoSpeak();
+}
+function memoGo(d){
+  if(!memo||memo.done)return;
+  const j=memo.i+d;
+  if(j<0)return;
+  if(j>=memo.ids.length){memo.done=true;render();return;}
+  memo.i=j;render();memoSpeak();
+}
+function leaveMemo(){memo=null;view='home';render();}
+function memoView(){
+  const n=memo.ids.length;
+  const bar=h('div',{class:'studybar'},
+    h('button',{class:'btn sm',type:'button',onclick:leaveMemo},icon('back'),'戻る'),
+    h('div',{class:'muted small'},memo.label||(typeof memo.deck==='string'?memo.deck:'')||'すべてのデッキ'),
+    h('div',{class:'qc'},h('span',null,n&&!memo.done?(memo.i+1)+' / '+n:n+'枚')));
+  const seg=h('div',{class:'seg',role:'group','aria-label':'表示するカード'},
+    [['new','未学習'],['all','すべて'],['pic','絵あり']].map(function(o){
+      return h('button',{type:'button','aria-pressed':memo.scope===o[0]?'true':'false',onclick:function(){memo.scope=o[0];memoApply();render();memoSpeak();}},o[1]+' '+memoList(memo.deck,o[0]).length);
+    }));
+  if(!n){
+    const msg={new:'未学習のカードはありません。「すべて」を選ぶと、学習済みのカードも見られます。',pic:'絵が付いたカードがありません。「すべて」を選び、各カードの「＋ 絵を付ける」から絵を追加できます。',all:'このデッキにカードがありません。'}[memo.scope];
+    return h('div',{class:'stack'},bar,seg,h('section',{class:'panel empty'},h('p',{class:'muted'},msg)));
+  }
+  if(memo.done){
+    const now=Date.now(),q=queueCounts(S.cards,memo.deck,memo.free?9999:newLeft(now),now),can=(q.nw+q.lr+q.rv)>0;
+    return h('div',{class:'stack'},bar,seg,
+      h('section',{class:'panel empty'},
+        h('h2',null,'ひと通り見ました'),
+        h('p',{class:'muted'},n+'枚を見ました。続けて、思い出す練習で定着させましょう。'),
+        h('div',{class:'row',style:'justify-content:center'},
+          h('button',{class:'btn primary',type:'button',disabled:!can,onclick:function(){const dk=memo.deck,lb=memo.label,fr=memo.free;memo=null;startStudy(dk,lb,fr);}},'続けて練習する'),
+          h('button',{class:'btn',type:'button',onclick:function(){memo.i=0;memo.done=false;render();memoSpeak();}},'もう一度見る')),
+        can?null:h('p',{class:'muted small'},'今日練習できるカードはありません。設定の「1日の新規カード数」を増やすと、新しいカードも練習できます。')));
+  }
+  const c=memoCard(),img=S.imgs[c.id];
+  const file=h('input',{type:'file',accept:'image/*',hidden:true,'aria-label':'画像ファイル'});
+  file.addEventListener('change',function(){
+    const f=file.files&&file.files[0];
+    readImage(f,function(d){setImg(c.id,d);scheduleSave();render();toast('絵を保存しました');});
+    file.value='';
+  });
+  const speakBtn=TTS?h('button',{class:'icon-btn',type:'button','aria-label':'発音を聞く',onclick:function(){speak(c.w);}},icon('sound')):null;
+  const textCol=h('div',{class:'memo-text'},
+    h('div',{class:'wordline'},h('div',{class:'word'},c.w),speakBtn),
+    phon(c)?h('div',{class:'phon'},phon(c)):null,
+    h('div',{class:'ja'},c.m),
+    c.e?h('div',{class:'etym'},h('div',{class:'etym-l'},'語源'),h('div',{class:'etym-t'},c.e)):null);
+  const picCol=h('div',{class:'memo-pic'},
+    img?h('img',{class:'pic',src:img,alt:c.w}):h('div',{class:'pic-empty'},'絵がまだありません'),
+    h('div',{class:'row'},
+      h('button',{class:'btn sm',type:'button',onclick:function(){file.click();}},img?'絵を変更':'＋ 絵を付ける'),
+      img?h('button',{class:'btn sm danger',type:'button',onclick:function(){setImg(c.id,'');scheduleSave();render();}},'絵を外す'):null,
+      file));
+  const card=h('section',{class:'card memo-card','aria-live':'polite'},
+    h('div',{class:'memo-grid'},textCol,picCol),
+    c.x?h('div',{class:'exline'},
+      h('div',{class:'ex'},exNode(c.x,c.w)),
+      TTS?h('button',{class:'icon-btn',type:'button','aria-label':'例文を聞く',onclick:function(){speak(c.x);}},icon('sound')):null):null);
+  const last=memo.i===n-1;
+  return h('div',{class:'stack'},bar,seg,
+    h('div',{class:'memo-prog'},h('i',{style:'--p:'+Math.round((memo.i+1)/n*100)})),
+    card,
+    h('div',{class:'memo-nav'},
+      h('button',{class:'btn',type:'button',disabled:memo.i===0,onclick:function(){memoGo(-1);}},'前へ'),
+      h('button',{class:'btn primary',type:'button',onclick:function(){memoGo(1);}},last?'完了':'次へ')),
+    h('div',{class:'foot'},h('span'),h('span',{class:'muted small'},'キー: ← → で移動')));
+}
+
+function emptyState(){
+  return h('section',{class:'panel empty'},
+    h('h2',null,'まだカードがありません'),
+    h('p',{class:'muted'},'サンプルの40語から始めるか、自分の単語を追加しましょう。'),
+    h('div',{class:'row'},
+      h('button',{class:'btn primary',type:'button',onclick:function(){seedSample();scheduleSave();toast('サンプル単語を追加しました');render();}},'サンプル40語を追加'),
+      h('button',{class:'btn',type:'button',onclick:function(){view='add';render();}},'単語を追加')));
+}
+
+function newDeckForm(){
+  return h('form',{class:'row',id:'new-deck-form',onsubmit:function(e){
+    e.preventDefault();
+    const name=document.getElementById('new-deck').value.replace(/\s+/g,' ').trim();
+    if(!name){toast('デッキ名を入力してください');return;}
+    if(name.length>60){toast('デッキ名は60文字までです');return;}
+    if(deckNames().indexOf(name)>=0){toast('「'+name+'」はすでにあります');return;}
+    S.decks.push(name);lastDeck=name;dirty.meta=true;scheduleSave();
+    creating=false;toast('デッキを作りました');render();
+  }},
+    h('label',{class:'lbl',for:'new-deck',style:'position:absolute;left:-9999px'},'新しいデッキの名前'),
+    h('input',{type:'text',id:'new-deck',placeholder:'デッキの名前(例: TOEIC頻出)',autocomplete:'off',maxlength:'60',style:'flex:1;min-width:160px;width:auto'}),
+    h('button',{class:'btn primary',type:'submit'},'作成'));
+}
+
+function homeView(){
+  if(!S.cards.length&&!S.decks.length)return emptyState();
+  const now=Date.now(),nl=newLeft(now),tot=queueCounts(S.cards,null,nl,now);
+  const due=tot.nw+tot.lr+tot.rv,fc=forecast(now);
+  const d=new Date(now);
+  const hero=h('section',{class:'panel hero'},
+    h('div',{class:'hero-top'},h('h2',null,'今日'),h('span',{class:'muted small'},(d.getMonth()+1)+'月'+d.getDate()+'日('+WK[d.getDay()]+')')),
+    h('div',{class:'counts'},
+      h('div',{class:'count c-nw'},h('b',null,tot.nw),h('span',null,'新規')),
+      h('div',{class:'count c-lr'},h('b',null,tot.lr),h('span',null,'学習中')),
+      h('div',{class:'count c-rv'},h('b',null,tot.rv),h('span',null,'復習'))),
+    due>0
+      ?h('button',{class:'btn primary big',type:'button',onclick:function(){startStudy(null);}},'練習を始める')
+      :h('p',{class:'muted'},'今日の分は完了しました。'+(fc[1]?'明日の復習は'+fc[1]+'枚です。':'')),
+    S.cards.length?h('button',{class:'btn big',type:'button',onclick:function(){startMemo(null);}},'見て覚える(英語と絵)'):null);
+  const decks=h('section',{class:'panel'},
+    h('div',{class:'hero-top'},h('h2',null,'デッキ'),h('button',{class:'btn sm',type:'button',onclick:function(){creating=!creating;render();if(creating){const i=document.getElementById('new-deck');if(i)i.focus();}}},creating?'閉じる':'＋ 新しいデッキ')),
+    creating?newDeckForm():null,
+    deckNames().map(function(name){
+      const q=queueCounts(S.cards,name,nl,now),total=S.cards.filter(function(c){return c.d===name;}).length;
+      const key='deck:'+name;
+      return h('div',{class:'deck'},
+        h('div',{class:'deck-main'},
+          h('div',{class:'deck-name'},name),
+          h('div',{class:'deck-meta'},
+            h('b',{class:'c-nw'},q.nw),' 新規 · ',h('b',{class:'c-lr'},q.lr),' 学習中 · ',h('b',{class:'c-rv'},q.rv),' 復習 · 全'+total+'枚')),
+        h('div',{class:'row'},
+          total===0
+            ?h('button',{class:'btn sm primary',type:'button',onclick:function(){lastDeck=name;view='add';render();}},'カードを追加')
+            :h('button',{class:'btn sm primary',type:'button',disabled:(q.nw+q.lr+q.rv)===0,onclick:function(){startStudy(name);}},'練習'),
+          total>0?h('button',{class:'btn sm',type:'button',onclick:function(){startMemo(name);}},'見て覚える'):null,
+          h('button',{class:'btn sm danger',type:'button',onclick:function(){
+            arm(key,function(){
+              S.cards=S.cards.filter(function(c){if(c.d===name){dirty.pages.add(c.pg);return false;}return true;});
+              S.decks=S.decks.filter(function(d){return d!==name;});dirty.meta=true;
+              scheduleSave();toast('デッキを削除しました');render();
+            },render);
+          }},armedKey===key?'本当に削除':'削除')));
+    }));
+  return h('div',{class:'stack'},hero,decks);
+}
+
+function studyView(){
+  const now=Date.now(),c=study.card,nl=studyNL(now),q=queueCounts(S.cards,study.deck,nl,now);
+  const cur=!c?'':c.s===0?'nw':c.s===2?'rv':'lr';
+  const bar=h('div',{class:'studybar'},
+    h('button',{class:'btn sm',type:'button',onclick:function(){view='home';study=null;render();}},icon('back'),'戻る'),
+    h('div',{class:'muted small'},study.label||(typeof study.deck==='string'?study.deck:'')||'すべてのデッキ'),
+    h('div',{class:'qc'},
+      h('span',{class:'q c-nw'+(cur==='nw'?' cur':'')},q.nw),
+      h('span',{class:'q c-lr'+(cur==='lr'?' cur':'')},q.lr),
+      h('span',{class:'q c-rv'+(cur==='rv'?' cur':'')},q.rv)));
+  if(!c){
+    return h('div',{class:'stack'},bar,
+      h('section',{class:'panel empty'},
+        h('h2',null,'お疲れさまでした'),
+        h('p',{class:'muted'},study.done?'今回は'+study.done+'枚を練習しました。':'今は練習するカードがありません。'),
+        h('button',{class:'btn primary',type:'button',onclick:function(){view='home';study=null;render();}},'ホームに戻る')));
+  }
+  const rev=S.settings.reverse;
+  const speakBtn=TTS?h('button',{class:'icon-btn',type:'button','aria-label':'発音を聞く',onclick:function(){speak(c.w);}},icon('sound')):null;
+  const wordLine=h('div',{class:'wordline'},h('div',{class:'word'},c.w),speakBtn);
+  const wordRow=wordLine;
+  const card=h('section',{class:'card','aria-live':'polite'});
+  if(!rev){
+    card.append(h('div',{class:'face-label'},'English'),wordRow);
+    if(phon(c))card.append(h('div',{class:'phon'},phon(c)));
+  }else{
+    card.append(h('div',{class:'face-label'},'日本語'),h('div',{class:'ja-front'},c.m));
+  }
+  if(study.shown){
+    card.append(h('div',{class:'rule'}));
+    if(rev){card.append(wordRow);if(phon(c))card.append(h('div',{class:'phon'},phon(c)));}
+    else card.append(h('div',{class:'ja'},c.m));
+    if(c.x){
+      card.append(h('div',{class:'exline'},
+        h('div',{class:'ex'},exNode(c.x,c.w)),
+        TTS?h('button',{class:'icon-btn',type:'button','aria-label':'例文を聞く',onclick:function(){speak(c.x);}},icon('sound')):null));
+    }
+    if(c.e){
+      card.append(h('div',{class:'etym'},h('div',{class:'etym-l'},'語源'),h('div',{class:'etym-t'},c.e)));
+    }
+  }
+  let actions;
+  if(!study.shown){
+    actions=h('button',{class:'btn primary big',type:'button',onclick:showAnswer},'答えを見る');
+  }else{
+    const names=['もう一度','難しい','普通','簡単'];
+    actions=h('div',{class:'rates'},[1,2,3,4].map(function(r){
+      return h('button',{class:'rate r'+r,type:'button',onclick:function(){rate(r);}},names[r-1],h('small',null,fmtNext(sched(c,r,now),now)));
+    }));
+  }
+  const foot=h('div',{class:'foot'},
+    study.undo.length?h('button',{class:'btn sm ghost',type:'button',onclick:undo},icon('undo'),'元に戻す'):h('span'),
+    h('span',{class:'muted small'},study.shown?'キー: 1〜4 で評価':'キー: Space で答えを表示'));
+  if(!study.shown&&study.undo.length===0)foot.lastChild.textContent='キー: Space で答えを表示';
+  return h('div',{class:'stack'},bar,card,actions,foot);
+}
+
+function addView(){
+  const pf=picField(addImg,function(d){addImg=d;});
+  const decks=deckNames();
+  const defDeck=lastDeck||decks[decks.length-1]||'マイ単語';
+  const dl=h('datalist',{id:'deck-list'},decks.map(function(d){return h('option',{value:d});}));
+  const form=h('form',{class:'panel',id:'add-form',onsubmit:function(e){
+    e.preventDefault();
+    const w=document.getElementById('f-word').value.trim();
+    const m=document.getElementById('f-meaning').value.trim();
+    const x=document.getElementById('f-ex').value.trim();
+    const et=document.getElementById('f-etym').value.trim();
+    const ph=document.getElementById('f-phon').value.trim();
+    const d=document.getElementById('f-deck').value.trim()||'マイ単語';
+    if(!w||!m){toast('英単語と意味を入力してください');return;}
+    if(hasDup(w,d)){toast('「'+w+'」はこのデッキにすでにあります');return;}
+    const nc=mkCard(w,m,x,d,et,ph);addCard(nc);if(addImg)setImg(nc.id,addImg);addImg='';pf.reset();lastDeck=d;
+    scheduleSave();
+    document.getElementById('f-word').value='';document.getElementById('f-meaning').value='';document.getElementById('f-ex').value='';document.getElementById('f-etym').value='';document.getElementById('f-phon').value='';
+    document.getElementById('add-count').textContent='全'+S.cards.length+'枚';
+    toast('追加しました');
+    document.getElementById('f-word').focus();
+  }},
+    h('h2',null,'単語を追加'),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'f-word'},'英単語・フレーズ'),h('input',{type:'text',id:'f-word',autocomplete:'off',autocapitalize:'none',spellcheck:'false',placeholder:'例: reluctant'})),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'f-phon'},'発音記号(任意)'),h('input',{type:'text',id:'f-phon',autocomplete:'off',spellcheck:'false',placeholder:'例: rɪˈlʌktənt'})),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'f-meaning'},'意味'),h('input',{type:'text',id:'f-meaning',autocomplete:'off',placeholder:'例: 気が進まない'})),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'f-ex'},'例文(任意)'),h('textarea',{id:'f-ex',rows:'2',placeholder:'例: She was reluctant to speak in public.'})),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'f-etym'},'語源(任意)'),h('textarea',{id:'f-etym',rows:'2',placeholder:'例: re-(逆らって)+ luctari(もがく)→抵抗してもがく→気が進まない'})),
+    pf.node,
+    h('div',{class:'field'},h('label',{class:'lbl',for:'f-deck'},'デッキ'),h('input',{type:'text',id:'f-deck',list:'deck-list',autocomplete:'off',value:defDeck})),
+    h('div',{class:'row'},h('button',{class:'btn primary',type:'submit'},'追加'),h('span',{class:'muted small',id:'add-count'},'全'+S.cards.length+'枚')),
+    dl);
+  const bulkMsg=h('p',{class:'muted small',id:'bulk-msg'});
+  const bulk=h('details',{class:'panel'},
+    h('summary',null,'まとめて追加(Anki・CSV・Excelから貼り付け)'),
+    h('p',{class:'muted small'},'1行に1枚。英単語 [Tab] 意味 [Tab] 例文 [Tab] 語源 [Tab] 発音記号 の形式です(例文・語源・発音記号は省略できます)。Ankiの「テキストとして書き出し」やExcelの列コピーがそのまま使えます。カンマ区切りは「英単語,意味」の2項目として読みます。'),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'b-deck'},'デッキ'),h('input',{type:'text',id:'b-deck',list:'deck-list',autocomplete:'off',value:defDeck})),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'b-text'},'貼り付け'),h('textarea',{id:'b-text',rows:'6',spellcheck:'false',placeholder:'abandon\t〜を捨てる\tHe had to abandon his car.'})),
+    h('div',{class:'row'},h('button',{class:'btn',type:'button',onclick:function(){
+      const d=document.getElementById('b-deck').value.trim()||'マイ単語';
+      const lines=document.getElementById('b-text').value.split(/\r?\n/);
+      let added=0,skipped=0;
+      for(let line of lines){
+        line=line.replace(/<br\s*\/?>/gi,' ').replace(/<[^>]*>/g,'').trim();
+        if(!line||line.charAt(0)==='#')continue;
+        let f;
+        if(line.indexOf('\t')>=0)f=line.split('\t');
+        else{const i=line.indexOf(',');f=i>0?[line.slice(0,i),line.slice(i+1)]:[line];}
+        f=f.map(function(s){return s.replace(/^"|"$/g,'').replace(/\s+/g,' ').trim();});
+        if(!f[0]||!f[1]){skipped++;continue;}
+        if(hasDup(f[0],d)){skipped++;continue;}
+        addCard(mkCard(f[0],f[1],f[2]||'',d,f[3]||'',f[4]||''));added++;
+      }
+      if(added){scheduleSave();lastDeck=d;document.getElementById('add-count').textContent='全'+S.cards.length+'枚';}
+      bulkMsg.textContent=added+'枚を追加しました'+(skipped?'(重複・形式エラー '+skipped+'行をスキップ)':'')+'。';
+      if(added)document.getElementById('b-text').value='';
+    }},'取り込む')),bulkMsg);
+  return h('div',{class:'stack'},form,bulk);
+}
+
+function statusLabel(c,now){
+  if(c.s===0)return '新規';
+  if(c.s===1||c.s===3)return '学習中';
+  const dd=Math.round((dayStart(c.due)-dayStart(now))/DAY);
+  return dd<=0?'今日':dd+'日後';
+}
+function browseView(){
+  selectMode=false;selected.clear();
+  const decks=deckNames();
+  const search=h('input',{type:'search',id:'q',placeholder:'単語・意味・語源を検索',value:query,autocomplete:'off',oninput:function(e){query=e.target.value;shownLimit=100;renderList();}});
+  const sel=h('select',{id:'q-deck','aria-label':'デッキで絞り込み',onchange:function(e){deckFilter=e.target.value;shownLimit=100;renderList();}},
+    h('option',{value:''},'すべてのデッキ'),
+    decks.map(function(d){return h('option',{value:d,selected:d===deckFilter});}).map(function(o,i){o.textContent=decks[i];return o;}));
+  const sortOpts=[['new','追加が新しい順'],['old','追加が古い順'],['r1','「もう一度」を先頭に'],['r2','「難しい」を先頭に'],['r3','「普通」を先頭に'],['r4','「簡単」を先頭に']];
+  const sortSel=h('select',{id:'q-sort','aria-label':'並び順',onchange:function(e){sortKey=e.target.value;shownLimit=100;renderList();}},
+    sortOpts.map(function(o){return h('option',{value:o[0],selected:o[0]===sortKey},o[1]);}));
+  return h('div',{class:'stack'},
+    h('div',{class:'grid2'},search,sel,sortSel),
+    h('section',{class:'panel'},h('div',{class:'hero-top'},h('h2',null,'カード一覧'),h('span',{class:'muted small',id:'list-count'})),h('div',{class:'bulkbar',id:'bulkbar'}),h('ul',{class:'list',id:'list'})));
+}
+function renderList(){
+  const ul=document.getElementById('list');
+  if(!ul)return;
+  const now=Date.now(),q=query.trim().toLowerCase();
+  const rows=S.cards.filter(function(c){
+    if(deckFilter&&c.d!==deckFilter)return false;
+    if(!q)return true;
+    return (c.w+' '+c.m+' '+(c.x||'')+' '+(c.e||'')).toLowerCase().indexOf(q)>=0;
+  });
+  if(sortKey!=='old')rows.reverse();
+  if(/^r[1-4]$/.test(sortKey)){
+    const k=parseInt(sortKey.slice(1),10);
+    rows.sort(function(a,b){return (b.lr===k?1:0)-(a.lr===k?1:0);});
+  }
+  curRows=rows;
+  if(selected.size){const ids=new Set(rows.map(function(c){return c.id;}));selected.forEach(function(id){if(!ids.has(id))selected.delete(id);});}
+  renderBulk();
+  document.getElementById('list-count').textContent=rows.length+'枚';
+  const out=rows.slice(0,shownLimit).map(function(c){return (!selectMode&&editingId===c.id)?editRow(c):cardRow(c,now);});
+  if(!rows.length)out.push(h('li',{class:'muted',style:'padding:12px 0'},'該当するカードがありません。'));
+  if(rows.length>shownLimit)out.push(h('li',{style:'padding-top:12px'},h('button',{class:'btn sm',type:'button',onclick:function(){shownLimit+=100;renderList();}},'さらに表示')));
+  ul.replaceChildren.apply(ul,out);
+}
+function renderBulk(){
+  const bar=document.getElementById('bulkbar');
+  if(!bar)return;
+  const n=selected.size,nodes=[];
+  if(!selectMode){
+    nodes.push(h('button',{class:'btn sm',type:'button',onclick:function(){selectMode=true;editingId=null;selected.clear();renderList();}},'単語を選ぶ'));
+  }else{
+    nodes.push(
+      h('button',{class:'btn sm',type:'button',onclick:function(){for(const c of curRows)selected.add(c.id);armedKey=null;clearTimeout(armedTimer);renderList();}},'表示中の'+curRows.length+'枚をすべて選択'),
+      h('button',{class:'btn sm',type:'button',disabled:!n,onclick:function(){selected.clear();armedKey=null;clearTimeout(armedTimer);renderList();}},'選択解除'),
+      h('button',{class:'btn sm primary',type:'button',disabled:!n,onclick:function(){
+        const ids=new Set(selected);startMemo(function(c){return ids.has(c.id);},'選んだ'+ids.size+'枚',true);
+      }},'選んだ'+n+'枚を見て覚える'),
+      h('button',{class:'btn sm primary',type:'button',disabled:!n,onclick:function(){
+        const ids=new Set(selected);startStudy(function(c){return ids.has(c.id);},'選んだ'+ids.size+'枚',true);
+      }},'選んだ'+n+'枚を練習'),
+      h('button',{class:'btn sm danger',type:'button',disabled:!n,onclick:function(){
+        arm('bulk',function(){
+          const ids=new Set(selected),cnt=ids.size;
+          S.cards=S.cards.filter(function(x){if(ids.has(x.id)){dirty.pages.add(x.pg);return false;}return true;});
+          selected.clear();scheduleSave();toast(cnt+'枚を削除しました');renderList();
+        },renderList);
+      }},armedKey==='bulk'?'本当に'+n+'枚を削除':n+'枚を削除'),
+      h('button',{class:'btn sm ghost',type:'button',onclick:function(){selectMode=false;selected.clear();armedKey=null;clearTimeout(armedTimer);renderList();}},'完了'));
+  }
+  bar.replaceChildren.apply(bar,nodes);
+}
+function cardRow(c,now){
+  if(selectMode){
+    const cb=h('input',{type:'checkbox',class:'pick','aria-label':c.w+' を選択',checked:selected.has(c.id)});
+    const li=h('li',{class:'item pickable'+(selected.has(c.id)?' sel':'')},
+      cb,
+      h('div',{class:'item-main',style:'flex:1'},h('div',{class:'item-w'},c.w),phon(c)?h('div',{class:'item-p'},phon(c)):null,h('div',{class:'item-m'},c.m),c.x?h('div',{class:'item-x'},c.x):null,c.e?h('div',{class:'item-e'},'語源: '+c.e):null),
+      h('div',{class:'item-side'},
+        h('span',{class:'badge s'+c.s},statusLabel(c,now)),
+        c.lr?h('span',{class:'badge lr'+c.lr},RATE_NAMES[c.lr-1]):null,
+        h('span',null,c.d)));
+    const toggle=function(){
+      if(selected.has(c.id))selected.delete(c.id);else selected.add(c.id);
+      cb.checked=selected.has(c.id);li.classList.toggle('sel',cb.checked);
+      armedKey=null;clearTimeout(armedTimer);renderBulk();
+    };
+    cb.addEventListener('change',toggle);
+    li.addEventListener('click',function(e){if(e.target===cb)return;toggle();});
+    return li;
+  }
+  return h('li',{class:'item'},
+    h('div',{class:'item-main'},h('div',{class:'item-w'},c.w),phon(c)?h('div',{class:'item-p'},phon(c)):null,h('div',{class:'item-m'},c.m),c.x?h('div',{class:'item-x'},c.x):null,c.e?h('div',{class:'item-e'},'語源: '+c.e):null),
+    h('div',{class:'item-side'},
+      h('span',{class:'badge s'+c.s},statusLabel(c,now)),
+      c.lr?h('span',{class:'badge lr'+c.lr,title:'直近の評価'},RATE_NAMES[c.lr-1]):null,
+      h('span',null,c.d),
+      h('div',{class:'row',style:'justify-content:flex-end'},
+        h('button',{class:'btn sm',type:'button',onclick:function(){editingId=c.id;editImg=S.imgs[c.id]||'';renderList();}},'編集'),
+        h('button',{class:'btn sm danger',type:'button','aria-label':c.w+' を削除',onclick:function(){
+          const key='card:'+c.id;
+          arm(key,function(){
+            S.cards=S.cards.filter(function(x){return x.id!==c.id;});
+            dirty.pages.add(c.pg);scheduleSave();toast('削除しました');renderList();
+          },renderList);
+        }},armedKey==='card:'+c.id?'本当に削除':'削除'))));
+}
+function editRow(c){
+  const pf=picField(editImg,function(d){editImg=d;});
+  const key='card:'+c.id;
+  const val=function(id,v,tag){const e=h(tag||'input',tag?{id:id,rows:'2'}:{type:'text',id:id,value:v,autocomplete:'off'});if(tag)e.value=v;return e;};
+  return h('li',{class:'item'},h('div',{class:'editbox'},
+    h('div',{class:'field'},h('label',{class:'lbl',for:'e-w'},'英単語'),val('e-w',c.w)),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'e-p'},'発音記号'),val('e-p',phon(c))),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'e-m'},'意味'),val('e-m',c.m)),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'e-x'},'例文'),val('e-x',c.x||'','textarea')),
+    h('div',{class:'field'},h('label',{class:'lbl',for:'e-e'},'語源'),val('e-e',c.e||'','textarea')),
+    pf.node,
+    h('div',{class:'field'},h('label',{class:'lbl',for:'e-d'},'デッキ'),val('e-d',c.d)),
+    h('div',{class:'row'},
+      h('button',{class:'btn primary sm',type:'button',onclick:function(){
+        const w=document.getElementById('e-w').value.trim(),m=document.getElementById('e-m').value.trim();
+        if(!w||!m){toast('英単語と意味は必須です');return;}
+        c.w=w;c.m=m;c.x=document.getElementById('e-x').value.trim();c.e=document.getElementById('e-e').value.trim();c.p=normP(document.getElementById('e-p').value);if((S.imgs[c.id]||'')!==editImg)setImg(c.id,editImg);c.d=document.getElementById('e-d').value.trim()||c.d;
+        dirty.pages.add(c.pg);scheduleSave();editingId=null;toast('保存しました');renderList();
+      }},'保存'),
+      h('button',{class:'btn sm',type:'button',onclick:function(){editingId=null;renderList();}},'キャンセル'),
+      h('button',{class:'btn sm danger',type:'button',onclick:function(){
+        arm(key,function(){
+          S.cards=S.cards.filter(function(x){return x.id!==c.id;});
+          dirty.pages.add(c.pg);scheduleSave();editingId=null;toast('削除しました');renderList();
+        },renderList);
+      }},armedKey===key?'本当に削除':'削除'))));
+}
+
+function statsView(){
+  const now=Date.now(),t0=dayStart(now),tk=dayKey(now),day=S.days[tk]||{n:0,r:0,a:0};
+  let streak=0;
+  let i=day.r>0?0:1;
+  while(i<400){const dd=S.days[dayKey(addDays(t0,-i))];if(dd&&dd.r>0){streak++;i++;}else break;}
+  let r30=0,a30=0;
+  for(let k=0;k<30;k++){const dd=S.days[dayKey(addDays(t0,-k))];if(dd){r30+=dd.r||0;a30+=dd.a||0;}}
+  const mature=S.cards.filter(function(c){return c.s===2&&c.iv>=21;}).length;
+  const learned=S.cards.filter(function(c){return c.s!==0;}).length;
+  const tiles=h('div',{class:'tiles'},
+    tile(day.r||0,'今日の練習(回)'),
+    tile(streak+'日','連続練習'),
+    tile(S.cards.length,'カード総数'),
+    tile(learned,'学習を始めた数'),
+    tile(mature,'定着(21日以上)'),
+    tile(r30?Math.round((r30-a30)/r30*100)+'%':'—','正答率(30日)'));
+  const fc=forecast(now);
+  const fLabels=fc.map(function(_,k){return k===0?'今日':k===1?'明日':WK[new Date(addDays(t0,k)).getDay()];});
+  const hist=[],hLabels=[];
+  for(let k=13;k>=0;k--){const dd=S.days[dayKey(addDays(t0,-k))];hist.push(dd?dd.r||0:0);hLabels.push(String(new Date(addDays(t0,-k)).getDate()));}
+  return h('div',{class:'stack'},tiles,
+    h('section',{class:'panel'},h('h2',null,'今後7日の復習予定'),bars(fc,fLabels),h('p',{class:'muted small'},'復習カードの枚数です。今日の分には遅れているカードも含みます。')),
+    h('section',{class:'panel'},h('h2',null,'過去14日の練習回数'),bars(hist,hLabels),h('p',{class:'muted small'},'横軸は日付(日)です。')));
+}
+function tile(v,l){return h('div',{class:'tile'},h('b',null,v),h('span',null,l));}
+function bars(vals,labels){
+  const max=Math.max(1,Math.max.apply(null,vals));
+  return h('div',{class:'bars-wrap'},
+    h('div',{class:'bars'},vals.map(function(v){
+      const pct=Math.round(v/max*88);
+      return h('div',{class:'bar'},h('div',{class:'col'},h('div',{class:'val',style:'--h:'+pct},v>0?v:''),h('div',{class:'fill'+(v===0?' zero':''),style:'--h:'+pct})));
+    })),
+    h('div',{class:'xrow'},labels.map(function(l){return h('div',{class:'xl'},l);})));
+}
+
+function settingsView(){
+  const exp=h('textarea',{id:'export-box',rows:'6',readonly:true,spellcheck:'false','aria-label':'書き出しテキスト'});
+  exp.value=exportText;
+  exp.hidden=!exportText;
+  return h('div',{class:'stack'},
+    h('section',{class:'panel'},h('h2',null,'学習の設定'),
+      h('div',{class:'field',style:'max-width:240px'},h('label',{class:'lbl',for:'set-new'},'1日の新規カード数'),
+        h('input',{type:'number',id:'set-new',min:'0',max:'500',value:String(S.settings.newPerDay),onchange:function(e){
+          const v=Math.max(0,Math.min(500,parseInt(e.target.value,10)||0));
+          S.settings.newPerDay=v;e.target.value=v;dirty.meta=true;scheduleSave();toast('保存しました');
+        }})),
+      h('label',{class:'check'},h('input',{type:'checkbox',id:'set-rev',checked:S.settings.reverse,onchange:function(e){S.settings.reverse=e.target.checked;dirty.meta=true;scheduleSave();}}),
+        h('span',null,'日本語から英語を思い出す(出題を逆にする)')),
+      TTS?h('label',{class:'check'},h('input',{type:'checkbox',id:'set-speak',checked:S.settings.autoSpeak,onchange:function(e){S.settings.autoSpeak=e.target.checked;dirty.meta=true;scheduleSave();}}),
+        h('span',null,'答えを表示したとき(「見て覚える」ではカードを開いたとき)に英単語を自動で読み上げる')):null),
+    TTS?h('section',{class:'panel'},h('h2',null,'発音'),
+      h('div',{class:'grid2'},
+        h('div',{class:'field'},h('label',{class:'lbl',for:'set-accent'},'アクセント'),
+          h('select',{id:'set-accent',onchange:function(e){S.settings.accent=e.target.value;S.settings.voiceURI='';dirty.meta=true;scheduleSave();render();}},
+            h('option',{value:'us',selected:S.settings.accent!=='uk'},'アメリカ英語'),
+            h('option',{value:'uk',selected:S.settings.accent==='uk'},'イギリス英語'))),
+        h('div',{class:'field'},h('label',{class:'lbl',for:'set-rate'},'速さ'),
+          h('select',{id:'set-rate',onchange:function(e){S.settings.rate=parseFloat(e.target.value)||0.9;dirty.meta=true;scheduleSave();}},
+            h('option',{value:'0.7',selected:Math.abs((S.settings.rate||0.9)-0.7)<0.01},'ゆっくり'),
+            h('option',{value:'0.9',selected:Math.abs((S.settings.rate||0.9)-0.9)<0.01},'ふつう'),
+            h('option',{value:'1.1',selected:Math.abs((S.settings.rate||0.9)-1.1)<0.01},'速い')))),
+      h('div',{class:'field'},h('label',{class:'lbl',for:'set-voice'},'声'),
+        h('select',{id:'set-voice',onchange:function(e){S.settings.voiceURI=e.target.value;dirty.meta=true;scheduleSave();}},
+          h('option',{value:''},'おまかせ(聞き取りやすい声を自動で選ぶ)'),
+          voices.map(function(v){const o=h('option',{value:v.voiceURI,selected:S.settings.voiceURI===v.voiceURI});o.textContent=v.name+' ('+vLang(v)+')';return o;}))),
+      voices.length?null:h('p',{class:'muted small'},'この端末で使える英語の音声が見つかりません。端末の設定で英語の音声を追加すると、ここに表示されます。'),
+      h('div',null,h('button',{class:'btn sm',type:'button',onclick:function(){speak('The quick brown fox jumps over the lazy dog.');}},'試しに聞く'))):null,
+    h('section',{class:'panel'},h('h2',null,'カードの見た目'),
+      h('div',{class:'grid2'},
+        h('div',{class:'field'},h('label',{class:'lbl',for:'set-font'},'英単語の書体'),
+          h('select',{id:'set-font',onchange:function(e){S.settings.cardFont=e.target.value;applyPrefs();dirty.meta=true;scheduleSave();}},
+            h('option',{value:'hyper',selected:S.settings.cardFont==='hyper'},'読みやすさ重視(Atkinson Hyperlegible)'),
+            h('option',{value:'sans',selected:S.settings.cardFont==='sans'},'標準のゴシック(Inter)'),
+            h('option',{value:'serif',selected:S.settings.cardFont==='serif'},'セリフ体(Source Serif)'))),
+        h('div',{class:'field'},h('label',{class:'lbl',for:'set-size'},'文字サイズ'),
+          h('select',{id:'set-size',onchange:function(e){S.settings.cardSize=e.target.value;applyPrefs();dirty.meta=true;scheduleSave();}},
+            h('option',{value:'s',selected:S.settings.cardSize==='s'},'小'),
+            h('option',{value:'m',selected:S.settings.cardSize==='m'},'標準'),
+            h('option',{value:'l',selected:S.settings.cardSize==='l'},'大')))),
+      h('div',{class:'card',style:'min-height:0;padding:20px 16px;gap:10px'},
+        h('div',{class:'word'},'reluctant'),
+        h('div',{class:'ja'},'気が進まない'),
+        h('div',{class:'ex'},exNode('She was reluctant to speak in public.','reluctant')))),
+    h('section',{class:'panel'},h('h2',null,'保存先'),
+      h('p',{class:'muted'},mode==='cloud'
+        ?'学習の進み具合はアカウントに保存されます。同じアカウントでこのページを開けば、別の端末でも続きから学習できます。'
+        :'学習の進み具合はこの端末のブラウザにだけ保存されています。ブラウザのデータを消すと失われるので、時々書き出しておくと安心です。')),
+    h('section',{class:'panel'},h('h2',null,'書き出し'),
+      h('p',{class:'muted small'},'英単語・意味・例文・語源・デッキをタブ区切りで書き出します(学習の進み具合・画像は含みません)。'),
+      h('div',{class:'row'},
+        h('button',{class:'btn sm',type:'button',onclick:function(){
+          exportText=S.cards.map(function(c){return [c.w,c.m,c.x||'',(c.e||'').replace(/\s+/g,' '),phon(c),c.d].join('\t');}).join('\n');
+          exp.value=exportText;exp.hidden=false;exp.focus();exp.select();
+        }},'テキストを表示'),
+        h('button',{class:'btn sm',type:'button',onclick:function(){
+          if(!exportText){exportText=S.cards.map(function(c){return [c.w,c.m,c.x||'',(c.e||'').replace(/\s+/g,' '),phon(c),c.d].join('\t');}).join('\n');exp.value=exportText;exp.hidden=false;}
+          let p=null;
+          try{p=navigator.clipboard.writeText(exportText);}catch(e){}
+          if(p&&p.then)p.then(function(){toast('コピーしました');},function(){exp.select();toast('選択しました。コピーしてください');});
+          else{exp.select();toast('選択しました。コピーしてください');}
+        }},'コピー')),
+      exp),
+    h('section',{class:'panel'},h('h2',null,'データの削除'),
+      h('p',{class:'muted small'},'すべてのカードと学習記録を削除します。元に戻せません。'),
+      h('div',null,h('button',{class:'btn sm danger',type:'button',onclick:function(){
+        arm('reset',function(){
+          for(const c of S.cards)dirty.pages.add(c.pg);
+          S.cards=[];S.days={};S.decks=[];S.seeded=true;dirty.meta=true;exportText='';scheduleSave();toast('すべて削除しました');render();
+        },render);
+      }},armedKey==='reset'?'本当にすべて削除':'すべて削除'))));
+}
+
+/* ---------- global events ---------- */
+document.addEventListener('keydown',function(e){
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(view==='memo'&&memo){
+    const t1=e.target;
+    if(t1&&(/^(INPUT|TEXTAREA|SELECT)$/.test(t1.tagName)||t1.isContentEditable))return;
+    if((e.key===' '||e.key==='Enter')&&t1&&t1.tagName==='BUTTON')return;
+    if(memo.done||!memo.ids.length)return;
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='Enter'){e.preventDefault();memoGo(1);}
+    else if(e.key==='ArrowLeft'){e.preventDefault();memoGo(-1);}
+    return;
+  }
+  if(view!=='study'||!study)return;
+  const t=e.target;
+  if(t&&(/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.isContentEditable))return;
+  if(e.key==='z'||e.key==='Z'){undo();return;}
+  if(!study.card)return;
+  if(!study.shown){
+    if(e.key===' '||e.key==='Enter'){e.preventDefault();showAnswer();}
+  }else{
+    if(e.key>='1'&&e.key<='4'){e.preventDefault();rate(parseInt(e.key,10));}
+    else if(e.key===' '||e.key==='Enter'){e.preventDefault();rate(3);}
+  }
+});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'&&(dirty.meta||dirty.pages.size||dirty.imgs.size))flush();});
+window.addEventListener('pagehide',function(){if(dirty.meta||dirty.pages.size||dirty.imgs.size)flush();});
+
+/* ---------- boot ---------- */
+if(TTS){
+  loadVoices();
+  try{speechSynthesis.addEventListener('voiceschanged',function(){const n=voices.length;loadVoices();if(view==='settings'&&voices.length!==n)render();});}catch(e){}
+}
+root.replaceChildren(header(),h('p',{class:'muted'},'読み込み中…'));
+initStorage().then(render,function(){mode='local';render();});
+})();
+</script>
+
+
+</body></html>
